@@ -5,12 +5,23 @@ public protocol ClosedRangeRepresentable {
   var closedRange:ClosedRange<Bound> { get }
 }
 
-public extension ClosedRangeRepresentable where Bound:AdditiveArithmetic {
+public extension ClosedRange where Bound:AdditiveArithmetic {
   var length:Bound {
-    self.closedRange.upperBound - self.closedRange.lowerBound
+    self.upperBound - self.lowerBound
   }
 }
 
+extension ClosedRange:ClosedRangeRepresentable {
+  public var closedRange: ClosedRange<Bound> {
+    return self
+  }
+}
+
+public extension ClosedRangeRepresentable where Bound:AdditiveArithmetic {
+  var length:Bound {
+    self.closedRange.length
+  }
+}
 
 public extension ClosedRangeRepresentable where Bound:FloatingPoint {
   func progress(for progressValue:Bound) -> Bound {
@@ -22,8 +33,10 @@ public extension ClosedRangeRepresentable where Bound:FloatingPoint {
 }
 
 
+/// Type representing overlaps between ranges
 public enum Overlap:Equatable,CustomStringConvertible {
   
+  /// A string representation of an overlap
   public var description: String {
     switch self {
       case .complete:
@@ -37,6 +50,7 @@ public enum Overlap:Equatable,CustomStringConvertible {
     }
   }
   
+  /// Bound, can be upper or lower
   public enum Bound:Equatable {
     case lower
     case upper
@@ -63,6 +77,9 @@ public extension ClosedRange {
     (other.upperBound < self.lowerBound || other.lowerBound > self.upperBound)
   }
   
+  /// Finds the way the two ranges overlap with reference to the caller.
+  /// - Parameter other: The other range to test against.
+  /// - Returns: The type of overlap that occurs.
   func overlap(_ other:Self<Bound>) -> Overlap {
     if self.completelyOverlaps(other) {
       return .complete
@@ -75,10 +92,18 @@ public extension ClosedRange {
     }
     return .partial(bound: .upper)
   }
+  
+  /// Returns the overlaps based on a bound.
+  /// - Parameter other: The position to test against.
+  /// - Returns: The type of overlap that occurs.
+  func overlap(_ other:Bound) -> Overlap {
+    self.overlap(other...other)
+  }
 }
 
 public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
   
+  /// The lowest bound in the collection
   var lowestBound:Element.Bound? {
     self.sorted {
       $0.closedRange.lowerBound < $1.closedRange.lowerBound
@@ -88,6 +113,7 @@ public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
     .lowerBound
   }
   
+  /// The highest upper bound in the collection
   var highestBound:Element.Bound? {
     self.sorted {
       $0.closedRange.upperBound < $1.closedRange.upperBound
@@ -97,12 +123,17 @@ public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
     .upperBound
   }
   
+  /// Returns elements that are completely contained within a given outer span
+  /// - Parameter outerSpan: A closed range to test with.
+  /// - Returns: An array of elements that are contained within the outerSpan.
   func elementsContainedCompletely(within outerSpan:ClosedRange<Element.Bound>) -> [Self.Element] {
     self.filter { outerSpan.completelyOverlaps($0.closedRange) }
   }
   
-  func elementsContained(within outerSpan:ClosedRange<Element.Bound>) -> [(Overlap,Self.Element)] {
-    
+  /// A function that finds elements that are partially or completely overlapped by a given closed range.
+  /// - Parameter outerSpan: A closed range to test with.
+  /// - Returns: An array of tuples containing the type of overlap and the element that was found.
+  func elementsOverlapping(with outerSpan:ClosedRange<Element.Bound>) -> [(Overlap,Self.Element)] {
     self.compactMap {
       let overlap = outerSpan.overlap($0.closedRange)
       guard overlap != .none else {
@@ -111,4 +142,47 @@ public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
       return (overlap, $0)
     }
   }
+  
+  /// A function that finds elements that are partially or completely overlapped by a given bound.
+  /// - Parameter bound: A bound to test against.
+  /// - Returns: An array of tuples containing the type of overlap and the element that was found.
+  func elementsOverlapping(with bound:Element.Bound) -> [(Overlap,Self.Element)] {
+    elementsOverlapping(with: bound...bound)
+  }
+  
+  /// Collapses all ranges into a set of non-overlapping ranges
+  var collapsed:[ClosedRange<Self.Element.Bound>] {
+    return self.sorted { a, b in
+      a.closedRange.lowerBound < b.closedRange.lowerBound
+    }.reduce([ClosedRange<Self.Element.Bound>]()) { partialResult, nextElement in
+      var copy = partialResult
+      guard let previousElement = copy.popLast() else {
+        return [nextElement.closedRange]
+      }
+      
+      if nextElement.closedRange.lowerBound <= previousElement.upperBound {
+        
+        if nextElement.closedRange.upperBound <= previousElement.closedRange.upperBound {
+          return copy + [previousElement]
+        }
+        
+        return copy + [previousElement.lowerBound...nextElement.closedRange.upperBound]
+      }
+      return copy + [previousElement,nextElement.closedRange]
+    }
+  }
+  
 }
+
+
+public extension RandomAccessCollection where Element:ClosedRangeRepresentable, Element.Bound:AdditiveArithmetic {
+  
+  /// The total length of all the ranges without overlaps
+  var collapsedLength:Element.Bound {
+    self.collapsed.reduce(Element.Bound.zero) { partialResult, element in
+      partialResult + element.length
+    }
+  }
+}
+
+

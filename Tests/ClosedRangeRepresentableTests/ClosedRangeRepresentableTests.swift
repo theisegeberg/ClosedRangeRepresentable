@@ -71,7 +71,7 @@
         let e45 = TestRangeElement(string: "e", closedRange: 4...5)
         
         func helper(_ r:ClosedRange<Int>, _ c:[TestRangeElement]) -> String {
-          c.elementsContained(within: r).map { (overlap, element) in
+          c.elementsOverlapping(with: r).map { (overlap, element) in
             return "\(overlap.description)-\(element.string)"
           }.joined(separator: ",")
         }
@@ -81,8 +81,40 @@
         XCTAssertEqual(helper(2...5, [a01, b12, c23, d03, e45]), "upper-b,complete-c,upper-d,complete-e")
         XCTAssertEqual(helper(5...7, [a01, b12, c23, d03, e45]), "upper-e")
         
+    
+      }
+      
+      func testCollapsing() {
+        struct TestRangeElement:ClosedRangeRepresentable {
+          let string:String
+          let closedRange: ClosedRange<Int>
+        }
+        
+        
+        let a01 = TestRangeElement(string: "a", closedRange: 0...1)
+        let b12 = TestRangeElement(string: "b", closedRange: 1...2)
+        let c23 = TestRangeElement(string: "c", closedRange: 2...3)
+        let d03 = TestRangeElement(string: "d", closedRange: 0...3)
+        let e45 = TestRangeElement(string: "e", closedRange: 4...5)
+        
+        let ranges = [a01,b12,c23,d03,e45]
+        let collapsed = ranges.collapsed
+        let collapsedLength = ranges.collapsedLength
+        
+        XCTAssertEqual(collapsed, [0...3,4...5])
+        XCTAssertEqual(collapsedLength, 4)
+        
+        
+        let ranges2 = [7...9,0...3,1...2,6...9,1...1]
+        XCTAssertEqual(ranges2.collapsed, [0...3,6...9])
+        XCTAssertEqual(ranges2.collapsedLength, 6)
+        
+        
       }
       
     }
+    
+    
+    
     
 
