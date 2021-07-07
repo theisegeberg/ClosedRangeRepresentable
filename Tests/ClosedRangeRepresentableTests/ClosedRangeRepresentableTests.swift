@@ -104,12 +104,48 @@
         XCTAssertEqual(collapsed, [0...3,4...5])
         XCTAssertEqual(collapsedLength, 4)
         
-        
         let ranges2 = [7...9,0...3,1...2,6...9,1...1]
         XCTAssertEqual(ranges2.collapsed, [0...3,6...9])
         XCTAssertEqual(ranges2.collapsedLength, 6)
+      
+      }
+      
+      func testContains() {
+        XCTAssertTrue([7...9,0...3,1...2,6...9,1...1].contains(1))
+        XCTAssertFalse([7...9,0...3,1...2,6...9,1...1].contains(10))
         
+        XCTAssertEqual([0...2,0...3,9...10].elementsContaining(1), [0...2,0...3])
+        XCTAssertNotEqual([0...2,0...3,9...10].elementsContaining(4), [0...2,0...3])
+
+      }
+      
+      func testLength() {
+        XCTAssertEqual((3...7).length, 4)
         
+        struct TestRangeElement:ClosedRangeRepresentable {
+          let string:String
+          let closedRange: ClosedRange<Int>
+        }
+        
+        XCTAssertEqual(TestRangeElement(string: "hello world", closedRange: 1...1).length, 0)
+      }
+      
+      
+      func testProgress() {
+        
+        let range:ClosedRange<Double> = 10...20
+        XCTAssertEqual(range.progress(for: -10), 0.0)
+        XCTAssertEqual(range.progress(for: 9), 0.0)
+        XCTAssertEqual(range.progress(for: 10), 0.0)
+        XCTAssertEqual(range.progress(for: 11), 0.1)
+        XCTAssertEqual(range.progress(for: 19), 0.9)
+        XCTAssertEqual(range.progress(for: 20), 1.0)
+        XCTAssertEqual(range.progress(for: 100), 1.0)
+
+      }
+      
+      func testOverlapDescription() {
+        XCTAssertEqual(Overlap.none.description, "none")
       }
       
     }

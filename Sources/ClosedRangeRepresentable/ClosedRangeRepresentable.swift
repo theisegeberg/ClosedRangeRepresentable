@@ -25,7 +25,7 @@ public extension ClosedRangeRepresentable where Bound:AdditiveArithmetic {
 
 public extension ClosedRangeRepresentable where Bound:FloatingPoint {
   func progress(for progressValue:Bound) -> Bound {
-    let result = (self.length - progressValue) / self.length
+    let result = (progressValue - self.closedRange.lowerBound) / self.length
     if result < 0 { return 0 }
     if result > 1 { return 1 }
     return result
@@ -93,12 +93,6 @@ public extension ClosedRange {
     return .partial(bound: .upper)
   }
   
-  /// Returns the overlaps based on a bound.
-  /// - Parameter other: The position to test against.
-  /// - Returns: The type of overlap that occurs.
-  func overlap(_ other:Bound) -> Overlap {
-    self.overlap(other...other)
-  }
 }
 
 public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
@@ -143,11 +137,25 @@ public extension RandomAccessCollection where Element:ClosedRangeRepresentable {
     }
   }
   
-  /// A function that finds elements that are partially or completely overlapped by a given bound.
-  /// - Parameter bound: A bound to test against.
-  /// - Returns: An array of tuples containing the type of overlap and the element that was found.
-  func elementsOverlapping(with bound:Element.Bound) -> [(Overlap,Self.Element)] {
-    elementsOverlapping(with: bound...bound)
+  /// Method for finding elements that contain a certain value.
+  /// - Parameter value: The value to test against.
+  /// - Returns: Elements that contain the value.
+  func elementsContaining(_ value:Element.Bound) -> [Self.Element] {
+    self.filter { element in
+      element.closedRange.contains(value)
+    }
+  }
+  
+  /// True if any of the ranges contains the bound.
+  /// - Parameter value: value to test with.
+  /// - Returns: True if the ranges contain the value, false if it doesn't..
+  func contains(_ value:Element.Bound) -> Bool {
+    for element in self {
+      if element.closedRange.contains(value) {
+        return true
+      }
+    }
+    return false
   }
   
   /// Collapses all ranges into a set of non-overlapping ranges
